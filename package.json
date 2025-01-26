@@ -1,26 +1,26 @@
 {
-    "name": "@bradbunce/launchdarkly-lambda-logger",
-    "version": "1.0.0",
-    "description": "LaunchDarkly-enabled logging utility for AWS Lambda functions",
-    "main": "src/index.js",
-    "type": "module",
-    "engines": {
-        "node": ">=22.0.0"
-    },
-    "scripts": {
-        "test": "node --test test/",
-        "lint": "eslint src/"
-    },
-    "dependencies": {
-        "@launchdarkly/node-server-sdk": "^9.7.3"
-    },
-    "devDependencies": {
-        "eslint": "^8.0.0"
-    },
-    "keywords": [
-        "launchdarkly",
-        "aws-lambda",
-        "logging",
-        "nodejs"
-    ]
+  "name": "@bradbunce/launchdarkly-lambda-logger",
+  "version": "1.0.0",
+  "description": "LaunchDarkly-enabled logging utility for AWS Lambda functions",
+  "main": "src/index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/index.test.js",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@launchdarkly/node-server-sdk": "^9.7.3"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0"
+  },
+  "keywords": [
+    "launchdarkly",
+    "aws-lambda",
+    "logging",
+    "nodejs"
+  ]
 }

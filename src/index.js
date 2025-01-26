@@ -1,4 +1,4 @@
-import * as LaunchDarkly from 'launchdarkly-node-server-sdk';
+import * as LaunchDarkly from '@launchdarkly/node-server-sdk';
 
 export const LogLevel = {
   FATAL: 0,
