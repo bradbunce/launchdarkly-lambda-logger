@@ -1,6 +1,6 @@
-import { test } from 'node:test';
-import assert from 'node:assert';
-import { Logger, LogLevel } from '../src/index.js';
+const { test } = require('node:test');
+const assert = require('node:assert');
+const { Logger, LogLevel } = require('../src/index.js');
 
 test('Logger initialization', async (t) => {
   const logger = new Logger();
@@ -19,13 +19,12 @@ test('Log levels are correctly ordered', async (t) => {
 test('shouldLog respects log levels', async (t) => {
   const logger = new Logger();
   
-  // Mock LD client
   logger.ldClient = {
     variation: async () => LogLevel.INFO
   };
   
-  assert.equal(await logger.shouldLog(LogLevel.ERROR), true);  // ERROR < INFO
-  assert.equal(await logger.shouldLog(LogLevel.DEBUG), false); // DEBUG > INFO
+  assert.equal(await logger.shouldLog(LogLevel.ERROR), true);
+  assert.equal(await logger.shouldLog(LogLevel.DEBUG), false);
 });
 
 test('Logger handles missing LD client', async (t) => {
