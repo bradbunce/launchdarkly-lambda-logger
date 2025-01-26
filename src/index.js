@@ -136,6 +136,7 @@ class Logger {
   }
 }
 
+export { Logger };
 export const logger = new Logger();
 
 /**
