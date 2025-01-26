@@ -18,16 +18,14 @@ class Logger {
   async initialize(sdkKey, context) {
     this.ldClient = LaunchDarkly.init(sdkKey, {
       logger: LaunchDarkly.basicLogger({
-        level: 'info',  // Allow INFO level messages
+        level: 'debug',  // Most verbose logging
         destination: (level, message) => {
-          switch (level) {
-            case 'error': console.error(`[LaunchDarkly] ${message}`); break;
-            case 'warn': console.warn(`[LaunchDarkly] ${message}`); break;
-            case 'info': console.info(`[LaunchDarkly] ${message}`); break;
-            case 'debug': console.debug(`[LaunchDarkly] ${message}`); break;
-          }
+          // Always log to see what's coming through
+          console.info(`[LaunchDarkly SDK ${level}] ${message}`);
         }
-      })
+      }),
+      streamUri: 'https://stream.launchdarkly.com',  // Explicitly set streaming
+      stream: true  // Ensure streaming is enabled
     });
     this.context = context;
     await this.ldClient.waitForInitialization({timeout: 10});
