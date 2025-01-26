@@ -7,9 +7,9 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "test": "node --test test/",
-    "lint": "eslint src/"
-  },
+  "test": "node --test test/index.test.js",
+  "lint": "eslint src/"
+},
   "dependencies": {
     "@launchdarkly/node-server-sdk": "^9.7.3"
   },
