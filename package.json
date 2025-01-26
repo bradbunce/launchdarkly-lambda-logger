@@ -1,14 +1,13 @@
 {
   "name": "@bradbunce/launchdarkly-lambda-logger",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "LaunchDarkly-enabled logging utility for AWS Lambda functions",
   "main": "src/index.js",
-  "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=18.0.0"
   },
   "scripts": {
-    "test": "node --test test/index.test.js",
+    "test": "node --test test/",
     "lint": "eslint src/"
   },
   "dependencies": {
@@ -18,9 +17,9 @@
     "eslint": "^8.0.0"
   },
   "keywords": [
-    "launchdarkly",
+    "launchdarkly", 
     "aws-lambda",
     "logging",
     "nodejs"
   ]
-}
+ }
