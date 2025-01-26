@@ -16,7 +16,18 @@ class Logger {
   }
 
   async initialize(sdkKey, context) {
-    this.ldClient = LaunchDarkly.init(sdkKey);
+    this.ldClient = LaunchDarkly.init(sdkKey, {
+      logger: LaunchDarkly.basicLogger({
+        destination: (level, message) => {
+          switch (level) {
+            case 'error': console.error(`[LaunchDarkly] ${message}`); break;
+            case 'warn': console.warn(`[LaunchDarkly] ${message}`); break;
+            case 'info': console.info(`[LaunchDarkly] ${message}`); break;
+            case 'debug': console.debug(`[LaunchDarkly] ${message}`); break;
+          }
+        }
+      })
+    });
     this.context = context;
     await this.ldClient.waitForInitialization({timeout: 10});
   }
