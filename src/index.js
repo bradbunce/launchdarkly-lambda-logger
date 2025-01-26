@@ -18,6 +18,7 @@ class Logger {
   async initialize(sdkKey, context) {
     this.ldClient = LaunchDarkly.init(sdkKey, {
       logger: LaunchDarkly.basicLogger({
+        level: 'info',  // Allow INFO level messages
         destination: (level, message) => {
           switch (level) {
             case 'error': console.error(`[LaunchDarkly] ${message}`); break;
