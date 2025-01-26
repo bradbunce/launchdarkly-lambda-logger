@@ -18,7 +18,7 @@ class Logger {
   async initialize(sdkKey, context) {
     this.ldClient = LaunchDarkly.init(sdkKey);
     this.context = context;
-    await this.ldClient.waitForInitialization();
+    await this.ldClient.waitForInitialization({timeout: 10});
   }
 
   async getCurrentLogLevel() {
