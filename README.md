@@ -26,13 +26,13 @@ Each level includes all levels above it in the hierarchy. For example, if the lo
 ## Installation
 
 ```bash
-npm install launchdarkly-lambda-logger
+npm install @bradbunce/launchdarkly-lambda-logger
 ```
 
 ## Usage
 
 ```javascript
-const { logger } = require('launchdarkly-lambda-logger');
+const { logger } = require('@bradbunce/launchdarkly-lambda-logger');
 
 exports.handler = async (event, context) => {
   // Initialize the logger with your LaunchDarkly SDK key and context
@@ -126,8 +126,14 @@ process.env.LD_SDK_LOG_LEVEL = 'error'; // error, warn, info, or debug
 ### Dependencies
 
 This project uses the following major dependencies:
-- `@launchdarkly/node-server-sdk`: ^9.7.3
+- `@launchdarkly/node-server-sdk`: ^9.7.3 (production)
 - Node.js: >=18.0.0
+
+Development dependencies:
+- `eslint`: ^9.0.0
+- `@eslint/js`: ^8.57.0
+- `glob`: ^10.3.10
+- `rimraf`: ^5.0.5
 
 To check for and address any deprecation warnings or updates:
 
