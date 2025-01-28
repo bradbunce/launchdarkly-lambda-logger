@@ -32,19 +32,28 @@ npm install @bradbunce/launchdarkly-lambda-logger
 
 ## Usage
 
+### Environment Variables
+
+- `LD_LOG_LEVEL_FLAG_KEY`: (Required) The LaunchDarkly feature flag key used to control log levels
+- `LD_SDK_LOG_LEVEL`: (Optional) Controls the LaunchDarkly SDK's own logging level (error, warn, info, or debug)
+
 ### Initialization Options
 
 The logger can be initialized in two ways:
 
 1. With a LaunchDarkly SDK key (creates a new client):
    ```javascript
-   await logger.initialize('YOUR_SDK_KEY', context);
+   await logger.initialize('YOUR_SDK_KEY', context, {
+     logLevelFlagKey: 'your-flag-key' // Optional: overrides LD_LOG_LEVEL_FLAG_KEY env var
+   });
    ```
 
 2. With an existing LaunchDarkly client (recommended if your app already has one):
    ```javascript
    const ldClient = LaunchDarkly.init('YOUR_SDK_KEY');
-   await logger.initialize(ldClient, context);
+   await logger.initialize(ldClient, context, {
+     logLevelFlagKey: 'your-flag-key' // Optional: overrides LD_LOG_LEVEL_FLAG_KEY env var
+   });
    ```
 
 Using an existing client is recommended when your application already has a LaunchDarkly client instance, as it prevents creating duplicate connections and reduces resource usage.
@@ -69,6 +78,9 @@ ldClient.on('change', (settings) => {
 const { logger } = require('@bradbunce/launchdarkly-lambda-logger');
 
 exports.handler = async (event, context) => {
+  // Set the flag key via environment variable
+  process.env.LD_LOG_LEVEL_FLAG_KEY = 'your-log-level-flag';
+  
   // Initialize the logger with your LaunchDarkly SDK key and context
   await logger.initialize('YOUR_SDK_KEY', {
     kind: 'user',
@@ -105,9 +117,9 @@ exports.handler = async (event, context) => {
 
 ### LaunchDarkly Feature Flag
 
-The logger uses a feature flag with the key `lambda-console-logging` to control the log level. Create this flag in your LaunchDarkly project with the following configuration:
+The logger uses a feature flag to control the log level. The flag key must be set via the `LD_LOG_LEVEL_FLAG_KEY` environment variable or the `logLevelFlagKey` initialization option. Create this flag in your LaunchDarkly project with the following configuration:
 
-- **Key**: `lambda-console-logging`
+- **Key**: Set via `LD_LOG_LEVEL_FLAG_KEY` environment variable or `logLevelFlagKey` option
 - **Type**: Number
 - **Default value**: 1 (ERROR level)
 - **Possible values**:
@@ -130,10 +142,12 @@ process.env.LD_SDK_LOG_LEVEL = 'error'; // error, warn, info, or debug
 
 ### Logger Methods
 
-- `initialize(sdkKeyOrClient: string | Object, context: Object): Promise<void>`
+- `initialize(sdkKeyOrClient: string | Object, context: Object, options?: Object): Promise<void>`
   - Initializes the logger with either a LaunchDarkly SDK key or an existing LaunchDarkly client instance
   - When using a SDK key, a new client will be created
   - When using an existing client, the logger will use that client instead of creating a new one
+  - Options:
+    - `logLevelFlagKey`: Override the LD_LOG_LEVEL_FLAG_KEY environment variable
   - Must be called before using any logging methods
 
 - `fatal(...args: any[]): Promise<void>`

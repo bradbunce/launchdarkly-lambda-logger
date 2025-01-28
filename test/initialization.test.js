@@ -20,10 +20,11 @@ LaunchDarkly.basicLogger = () => ({});
 
 test('Logger initialization with SDK key', async (t) => {
   const logger = new Logger();
-  assert.equal(logger.FLAG_KEY, 'lambda-console-logging');
+  process.env.LD_LOG_LEVEL_FLAG_KEY = 'test-log-level-flag';
+  assert.equal(logger.FLAG_KEY, null); // Should be null before initialization
   
   try {
-    await logger.initialize('fake-sdk-key', { key: 'test-user' });
+    await logger.initialize('fake-sdk-key', { key: 'test-user' }, { logLevelFlagKey: 'test-log-level-flag' });
     assert.equal(logger.ldClient, mockLDClient);
   } finally {
     // Restore original functions
