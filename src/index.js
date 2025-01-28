@@ -1,3 +1,22 @@
+/**
+ * LaunchDarkly Lambda Logger
+ * 
+ * A logging utility for AWS Lambda that integrates with LaunchDarkly for dynamic log level control.
+ * Uses LaunchDarkly feature flags to control log levels at runtime, allowing dynamic adjustment
+ * of logging verbosity without code changes or redeployment.
+ * 
+ * Environment Variables:
+ * - LD_LOG_LEVEL_FLAG_KEY: LaunchDarkly feature flag key used to control log level
+ * 
+ * Log Levels (0-5):
+ * - FATAL (0): Unrecoverable errors requiring immediate attention
+ * - ERROR (1): Severe errors that are not fatal
+ * - WARN (2): Potentially harmful situations
+ * - INFO (3): General operational messages
+ * - DEBUG (4): Detailed information for debugging
+ * - TRACE (5): Very detailed debugging information
+ */
+
 const LaunchDarkly = require('@launchdarkly/node-server-sdk');
 
 /**
@@ -26,39 +45,47 @@ class Logger {
    */
   constructor() {
     this.ldClient = null;
-    this.FLAG_KEY = 'lambda-console-logging';
+    this.FLAG_KEY = null;
   }
 
   /**
    * Initializes the logger with LaunchDarkly SDK.
    * @param {string|Object} sdkKeyOrClient - Either a LaunchDarkly SDK key or an existing LaunchDarkly client instance
    * @param {Object} context - LaunchDarkly context object for evaluating feature flags
+   * @param {Object} options - Configuration options
+   * @param {string} options.logLevelFlagKey - LaunchDarkly feature flag key for log level control
    * @returns {Promise<void>}
    */
-  async initialize(sdkKeyOrClient, context) {
+  async initialize(sdkKeyOrClient, context, options = {}) {
+    this.FLAG_KEY = options.logLevelFlagKey || process.env.LD_LOG_LEVEL_FLAG_KEY;
+    
+    if (!this.FLAG_KEY) {
+      throw new Error('Logger requires LD_LOG_LEVEL_FLAG_KEY environment variable or logLevelFlagKey option');
+    }
+
     if (typeof sdkKeyOrClient === 'string') {
-      const validLevels = ['error', 'warn', 'info', 'debug'];
-      const sdkLogLevel = process.env.LD_SDK_LOG_LEVEL?.toLowerCase();
-      
-      // If level is invalid or not set, SDK will use default 'info'
-      const level = validLevels.includes(sdkLogLevel) ? sdkLogLevel : undefined;
-      
       this.ldClient = LaunchDarkly.init(sdkKeyOrClient, {
         logger: LaunchDarkly.basicLogger({
-          level,
+          level: 'debug',
           destination: (level, message) => {
-            console.info(`[LaunchDarkly SDK ${level}] ${message}`);
+            console.debug(`[LaunchDarkly SDK ${level}] ${message}`);
           }
         })
       });
     } else if (sdkKeyOrClient && typeof sdkKeyOrClient === 'object') {
-      // Use existing client instance
       this.ldClient = sdkKeyOrClient;
     } else {
       throw new Error('Logger.initialize requires either an SDK key string or an existing LaunchDarkly client instance');
     }
+
     this.context = context;
-    await this.ldClient.waitForInitialization({timeout: 10});
+    await this.ldClient.waitForInitialization({ timeout: 10 });
+
+    // Log initialization details
+    console.debug('🚀 LaunchDarkly logger initialized:', {
+      context,
+      flagKey: this.FLAG_KEY
+    });
   }
 
   /**
@@ -68,7 +95,23 @@ class Logger {
    */
   async getCurrentLogLevel() {
     if (!this.ldClient) return LogLevel.ERROR;
-    return await this.ldClient.variation(this.FLAG_KEY, this.context, LogLevel.ERROR);
+
+    // Add debug logging before evaluation
+    console.debug('🔍 Evaluating log level flag:', {
+      flagKey: this.FLAG_KEY,
+      context: this.context
+    });
+    
+    const logLevel = await this.ldClient.variation(this.FLAG_KEY, this.context, LogLevel.ERROR);
+    
+    // Add debug logging after evaluation
+    console.debug('📊 Log level flag evaluated:', {
+      flagKey: this.FLAG_KEY,
+      context: this.context,
+      value: logLevel
+    });
+    
+    return logLevel;
   }
 
   /**
