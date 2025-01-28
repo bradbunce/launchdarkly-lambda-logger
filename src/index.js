@@ -31,25 +31,32 @@ class Logger {
 
   /**
    * Initializes the logger with LaunchDarkly SDK.
-   * @param {string} sdkKey - LaunchDarkly SDK key
+   * @param {string|Object} sdkKeyOrClient - Either a LaunchDarkly SDK key or an existing LaunchDarkly client instance
    * @param {Object} context - LaunchDarkly context object for evaluating feature flags
    * @returns {Promise<void>}
    */
-  async initialize(sdkKey, context) {
-    const validLevels = ['error', 'warn', 'info', 'debug'];
-    const sdkLogLevel = process.env.LD_SDK_LOG_LEVEL?.toLowerCase();
-    
-    // If level is invalid or not set, SDK will use default 'info'
-    const level = validLevels.includes(sdkLogLevel) ? sdkLogLevel : undefined;
-    
-    this.ldClient = LaunchDarkly.init(sdkKey, {
-      logger: LaunchDarkly.basicLogger({
-        level,
-        destination: (level, message) => {
-          console.info(`[LaunchDarkly SDK ${level}] ${message}`);
-        }
-      })
-    });
+  async initialize(sdkKeyOrClient, context) {
+    if (typeof sdkKeyOrClient === 'string') {
+      const validLevels = ['error', 'warn', 'info', 'debug'];
+      const sdkLogLevel = process.env.LD_SDK_LOG_LEVEL?.toLowerCase();
+      
+      // If level is invalid or not set, SDK will use default 'info'
+      const level = validLevels.includes(sdkLogLevel) ? sdkLogLevel : undefined;
+      
+      this.ldClient = LaunchDarkly.init(sdkKeyOrClient, {
+        logger: LaunchDarkly.basicLogger({
+          level,
+          destination: (level, message) => {
+            console.info(`[LaunchDarkly SDK ${level}] ${message}`);
+          }
+        })
+      });
+    } else if (sdkKeyOrClient && typeof sdkKeyOrClient === 'object') {
+      // Use existing client instance
+      this.ldClient = sdkKeyOrClient;
+    } else {
+      throw new Error('Logger.initialize requires either an SDK key string or an existing LaunchDarkly client instance');
+    }
     this.context = context;
     await this.ldClient.waitForInitialization({timeout: 10});
   }

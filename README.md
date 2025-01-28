@@ -9,6 +9,7 @@ A feature flag-controlled logging utility for AWS Lambda functions that integrat
 - 📊 **Multiple Log Levels**: Support for FATAL, ERROR, WARN, INFO, DEBUG, and TRACE levels
 - ⚡ **AWS Lambda Optimized**: Designed for use in AWS Lambda functions
 - 🔧 **Configurable SDK Logging**: Control LaunchDarkly SDK's own logging behavior
+- 🔄 **Flexible Client Integration**: Works with either a new LaunchDarkly client or an existing one from your application, preventing duplicate client instances
 
 ## Log Levels
 
@@ -31,12 +32,38 @@ npm install @bradbunce/launchdarkly-lambda-logger
 
 ## Usage
 
+### Initialization Options
+
+The logger can be initialized in two ways:
+
+1. With a LaunchDarkly SDK key (creates a new client):
+   ```javascript
+   await logger.initialize('YOUR_SDK_KEY', context);
+   ```
+
+2. With an existing LaunchDarkly client (recommended if your app already has one):
+   ```javascript
+   const ldClient = LaunchDarkly.init('YOUR_SDK_KEY');
+   await logger.initialize(ldClient, context);
+   ```
+
+Using an existing client is recommended when your application already has a LaunchDarkly client instance, as it prevents creating duplicate connections and reduces resource usage.
+
+### Example Usage
+
 ```javascript
 const { logger } = require('@bradbunce/launchdarkly-lambda-logger');
 
 exports.handler = async (event, context) => {
   // Initialize the logger with your LaunchDarkly SDK key and context
   await logger.initialize('YOUR_SDK_KEY', {
+    kind: 'user',
+    key: 'lambda-function-1'
+  });
+
+  // OR use an existing LaunchDarkly client
+  const ldClient = LaunchDarkly.init('YOUR_SDK_KEY');
+  await logger.initialize(ldClient, {
     kind: 'user',
     key: 'lambda-function-1'
   });
@@ -89,8 +116,10 @@ process.env.LD_SDK_LOG_LEVEL = 'error'; // error, warn, info, or debug
 
 ### Logger Methods
 
-- `initialize(sdkKey: string, context: Object): Promise<void>`
-  - Initializes the logger with LaunchDarkly credentials
+- `initialize(sdkKeyOrClient: string | Object, context: Object): Promise<void>`
+  - Initializes the logger with either a LaunchDarkly SDK key or an existing LaunchDarkly client instance
+  - When using a SDK key, a new client will be created
+  - When using an existing client, the logger will use that client instead of creating a new one
   - Must be called before using any logging methods
 
 - `fatal(...args: any[]): Promise<void>`
@@ -170,4 +199,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-

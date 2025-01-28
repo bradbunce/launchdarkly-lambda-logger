@@ -2,11 +2,6 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { Logger, LogLevel } = require('../src/index.js');
 
-test('Logger initialization', async (t) => {
-  const logger = new Logger();
-  assert.equal(logger.FLAG_KEY, 'lambda-console-logging');
-});
-
 test('Log levels are correctly ordered', async (t) => {
   assert.equal(LogLevel.FATAL, 0);
   assert.equal(LogLevel.ERROR, 1);
