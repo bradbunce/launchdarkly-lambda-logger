@@ -1,10 +1,10 @@
 # LaunchDarkly Lambda Logger
 
-A feature flag-controlled logging utility for AWS Lambda functions that integrates with LaunchDarkly. This logger enables dynamic control over log levels through LaunchDarkly feature flags, allowing you to adjust logging verbosity in real-time without deploying code changes.
+A feature flag-controlled console logging utility for AWS Lambda functions that integrates with LaunchDarkly. This logger enables dynamic control over log levels through LaunchDarkly feature flags, allowing you to adjust logging verbosity in real-time without deploying code changes. Note: This utility is specifically designed for console logging with dynamic log levels - it does not handle or display LaunchDarkly SDK flag evaluation events.
 
 ## Features
 
-- 🎯 **Dynamic Log Level Control**: Adjust log levels in real-time using LaunchDarkly feature flags
+- 🎯 **Dynamic Log Level Control**: Adjust console log levels in real-time using LaunchDarkly feature flags
 - 🎨 **Emoji-Enhanced Logging**: Visual distinction between log levels using emojis
 - 📊 **Multiple Log Levels**: Support for FATAL, ERROR, WARN, INFO, DEBUG, and TRACE levels
 - ⚡ **AWS Lambda Optimized**: Designed for use in AWS Lambda functions
@@ -48,6 +48,20 @@ The logger can be initialized in two ways:
    ```
 
 Using an existing client is recommended when your application already has a LaunchDarkly client instance, as it prevents creating duplicate connections and reduces resource usage.
+
+### Important Note
+
+This utility is focused solely on providing console logging with dynamic log levels controlled by LaunchDarkly. It does not log or display LaunchDarkly SDK flag evaluation events. If you need to monitor flag evaluations, you should set up event listeners directly on your LaunchDarkly client:
+
+```javascript
+ldClient.on('update', (settings) => {
+  console.log('Flag update received:', settings);
+});
+
+ldClient.on('change', (settings) => {
+  console.log('Flag change detected:', settings);
+});
+```
 
 ### Example Usage
 
