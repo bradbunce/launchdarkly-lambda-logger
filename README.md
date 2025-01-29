@@ -8,7 +8,7 @@ A feature flag-controlled logging utility for AWS Lambda functions that integrat
 - 🎨 **Emoji-Enhanced Logging**: Visual distinction between log levels using emojis
 - 📊 **Multiple Log Levels**: Support for FATAL, ERROR, WARN, INFO, DEBUG, and TRACE levels
 - ⚡ **AWS Lambda Optimized**: Designed for use in AWS Lambda functions
-- 🔧 **Configurable SDK Logging**: Control LaunchDarkly SDK's own logging behavior
+- 🔧 **Configurable SDK Logging**: Control LaunchDarkly SDK's own logging behavior via feature flags
 - 🔄 **Flexible Client Integration**: Works with either a new LaunchDarkly client or an existing one from your application
 - ⏰ **Timestamp Support**: Each log entry includes a timestamp for better tracking
 - 📝 **Winston Integration**: Built on Winston for robust logging capabilities and customizable formatting
@@ -37,7 +37,7 @@ npm install @bradbunce/launchdarkly-lambda-logger
 ### Environment Variables
 
 - `LD_LOG_LEVEL_FLAG_KEY`: (Required) The LaunchDarkly feature flag key used to control log levels
-- `LD_SDK_LOG_LEVEL`: (Optional) Controls the LaunchDarkly SDK's own logging level (error, warn, info, or debug)
+- `LD_SDK_LOG_LEVEL_FLAG_KEY`: (Optional) The LaunchDarkly feature flag key used to control the SDK's own logging level
 
 ### Initialization Options
 
@@ -46,7 +46,8 @@ The logger can be initialized in two ways:
 1. With a LaunchDarkly SDK key (creates a new client):
    ```javascript
    await logger.initialize('YOUR_SDK_KEY', context, {
-     logLevelFlagKey: 'your-flag-key' // Optional: overrides LD_LOG_LEVEL_FLAG_KEY env var
+     logLevelFlagKey: 'your-flag-key', // Optional: overrides LD_LOG_LEVEL_FLAG_KEY env var
+     sdkLogLevelFlagKey: 'your-sdk-log-level-flag' // Optional: overrides LD_SDK_LOG_LEVEL_FLAG_KEY env var
    });
    ```
 
@@ -80,8 +81,9 @@ ldClient.on('change', (settings) => {
 const { logger } = require('@bradbunce/launchdarkly-lambda-logger');
 
 exports.handler = async (event, context) => {
-  // Set the flag key via environment variable
+  // Set the flag keys via environment variables
   process.env.LD_LOG_LEVEL_FLAG_KEY = 'your-log-level-flag';
+  process.env.LD_SDK_LOG_LEVEL_FLAG_KEY = 'your-sdk-log-level-flag';
   
   // Initialize the logger with your LaunchDarkly SDK key and context
   await logger.initialize('YOUR_SDK_KEY', {
@@ -118,10 +120,12 @@ exports.handler = async (event, context) => {
 
 ## Configuration
 
-### LaunchDarkly Feature Flag
+### LaunchDarkly Feature Flags
 
-The logger uses a feature flag to control the log level. The flag key must be set via the `LD_LOG_LEVEL_FLAG_KEY` environment variable or the `logLevelFlagKey` initialization option. Create this flag in your LaunchDarkly project with the following configuration:
+#### Application Log Level Flag
+The logger uses a feature flag to control the application log level. The flag key must be set via the `LD_LOG_LEVEL_FLAG_KEY` environment variable or the `logLevelFlagKey` initialization option.
 
+Create this flag in your LaunchDarkly project with the following configuration:
 - **Key**: Set via `LD_LOG_LEVEL_FLAG_KEY` environment variable or `logLevelFlagKey` option
 - **Type**: Number
 - **Default value**: 1 (ERROR level)
@@ -133,13 +137,21 @@ The logger uses a feature flag to control the log level. The flag key must be se
   - 4: DEBUG and above
   - 5: TRACE and above
 
-### SDK Logging
+#### SDK Log Level Flag
+You can control the LaunchDarkly SDK's own logging level using a feature flag. The flag key must be set via the `LD_SDK_LOG_LEVEL_FLAG_KEY` environment variable or the `sdkLogLevelFlagKey` initialization option.
 
-You can control the LaunchDarkly SDK's own logging level by setting the `LD_SDK_LOG_LEVEL` environment variable:
+Create this flag in your LaunchDarkly project with the following configuration:
+- **Key**: Set via `LD_SDK_LOG_LEVEL_FLAG_KEY` environment variable or `sdkLogLevelFlagKey` option
+- **Type**: String
+- **Default value**: 'error'
+- **Possible values**:
+  - 'debug': Most verbose logging
+  - 'info': Informational messages
+  - 'warn': Warning messages
+  - 'error': Error messages only
+  - 'none': No SDK logging
 
-```javascript
-process.env.LD_SDK_LOG_LEVEL = 'error'; // error, warn, info, or debug
-```
+If an invalid value is returned by the flag, the SDK will default to 'error' level logging.
 
 ### Log Output Format
 

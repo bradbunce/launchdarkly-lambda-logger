@@ -7,6 +7,7 @@
  * 
  * Environment Variables:
  * - LD_LOG_LEVEL_FLAG_KEY: LaunchDarkly feature flag key used to control log level
+ * - LD_SDK_LOG_LEVEL_FLAG_KEY: LaunchDarkly feature flag key used to control SDK log level
  * 
  * Log Levels (0-5):
  * - FATAL (0): Unrecoverable errors requiring immediate attention
@@ -94,27 +95,50 @@ class Logger {
    * @param {Object} context - LaunchDarkly context object for evaluating feature flags
    * @param {Object} options - Configuration options
    * @param {string} options.logLevelFlagKey - LaunchDarkly feature flag key for log level control
+   * @param {string} options.sdkLogLevelFlagKey - LaunchDarkly feature flag key for SDK log level control
    * @returns {Promise<void>}
    */
   async initialize(sdkKeyOrClient, context, options = {}) {
     this.FLAG_KEY = options.logLevelFlagKey || process.env.LD_LOG_LEVEL_FLAG_KEY;
+    this.SDK_LOG_LEVEL_FLAG_KEY = options.sdkLogLevelFlagKey || process.env.LD_SDK_LOG_LEVEL_FLAG_KEY;
     
     if (!this.FLAG_KEY) {
       throw new Error('Logger requires LD_LOG_LEVEL_FLAG_KEY environment variable or logLevelFlagKey option');
     }
 
     if (typeof sdkKeyOrClient === 'string') {
-      const ldOptions = {
-        logger: LaunchDarkly.basicLogger({
-          level: 'debug',
-          destination: (level, message) => {
-            this.logger.debug(`[LaunchDarkly SDK ${level}] ${message}`);
-          }
-        }),
-        ...options // Allow passing additional options like offline mode
-      };
-      
-      this.ldClient = LaunchDarkly.init(sdkKeyOrClient, ldOptions);
+      // Initialize a temporary client to get SDK log level from flag
+      if (this.SDK_LOG_LEVEL_FLAG_KEY) {
+        const validSdkLogLevels = ['debug', 'info', 'warn', 'error', 'none'];
+        const tempClient = LaunchDarkly.init(sdkKeyOrClient, {
+          logger: LaunchDarkly.basicLogger({ level: 'error' })
+        });
+        
+        await tempClient.waitForInitialization();
+        let sdkLogLevel = await tempClient.variation(this.SDK_LOG_LEVEL_FLAG_KEY, context, 'error');
+        await tempClient.close();
+
+        // Validate the log level
+        if (!validSdkLogLevels.includes(sdkLogLevel)) {
+          this.logger.warn(`Invalid SDK log level "${sdkLogLevel}" from flag. Using default "error"`);
+          sdkLogLevel = 'error';
+        }
+
+        const ldOptions = {
+          logger: LaunchDarkly.basicLogger({
+            level: sdkLogLevel,
+            destination: (level, message) => {
+              this.logger.debug(`[LaunchDarkly SDK ${level}] ${message}`);
+            }
+          }),
+          ...options
+        };
+        
+        this.ldClient = LaunchDarkly.init(sdkKeyOrClient, ldOptions);
+      } else {
+        // No SDK log level flag, use default initialization
+        this.ldClient = LaunchDarkly.init(sdkKeyOrClient, options);
+      }
     } else if (sdkKeyOrClient && typeof sdkKeyOrClient === 'object') {
       this.ldClient = sdkKeyOrClient;
     } else {
@@ -122,12 +146,13 @@ class Logger {
     }
 
     this.context = context;
-    await this.ldClient.waitForInitialization({ timeout: 10 });
+    await this.ldClient.waitForInitialization();
 
     // Log initialization details
     this.logger.debug(`🚀 LaunchDarkly logger initialized: ${JSON.stringify({
       context,
-      flagKey: this.FLAG_KEY
+      flagKey: this.FLAG_KEY,
+      sdkLogLevelFlagKey: this.SDK_LOG_LEVEL_FLAG_KEY
     }, null, 2)}`);
   }
 
