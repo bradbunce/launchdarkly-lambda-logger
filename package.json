@@ -1,6 +1,6 @@
 {
   "name": "@bradbunce/launchdarkly-lambda-logger",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "LaunchDarkly-enabled logging utility for AWS Lambda functions",
   "main": "src/index.js",
   "engines": {
@@ -11,7 +11,8 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "@launchdarkly/node-server-sdk": "^9.7.3"
+    "@launchdarkly/node-server-sdk": "^9.7.3",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@eslint/js": "^8.57.0",

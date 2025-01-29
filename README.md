@@ -1,15 +1,17 @@
 # LaunchDarkly Lambda Logger
 
-A feature flag-controlled console logging utility for AWS Lambda functions that integrates with LaunchDarkly. This logger enables dynamic control over log levels through LaunchDarkly feature flags, allowing you to adjust logging verbosity in real-time without deploying code changes. Note: This utility is specifically designed for console logging with dynamic log levels - it does not handle or display LaunchDarkly SDK flag evaluation events.
+A feature flag-controlled logging utility for AWS Lambda functions that integrates with LaunchDarkly and Winston. This logger enables dynamic control over log levels through LaunchDarkly feature flags, allowing you to adjust logging verbosity in real-time without deploying code changes. Built on Winston for robust logging capabilities with timestamp support and customizable formatting. Note: This utility is specifically designed for logging with dynamic log levels - it does not handle or display LaunchDarkly SDK flag evaluation events.
 
 ## Features
 
-- 🎯 **Dynamic Log Level Control**: Adjust console log levels in real-time using LaunchDarkly feature flags
+- 🎯 **Dynamic Log Level Control**: Adjust log levels in real-time using LaunchDarkly feature flags
 - 🎨 **Emoji-Enhanced Logging**: Visual distinction between log levels using emojis
 - 📊 **Multiple Log Levels**: Support for FATAL, ERROR, WARN, INFO, DEBUG, and TRACE levels
 - ⚡ **AWS Lambda Optimized**: Designed for use in AWS Lambda functions
 - 🔧 **Configurable SDK Logging**: Control LaunchDarkly SDK's own logging behavior
-- 🔄 **Flexible Client Integration**: Works with either a new LaunchDarkly client or an existing one from your application, preventing duplicate client instances
+- 🔄 **Flexible Client Integration**: Works with either a new LaunchDarkly client or an existing one from your application
+- ⏰ **Timestamp Support**: Each log entry includes a timestamp for better tracking
+- 📝 **Winston Integration**: Built on Winston for robust logging capabilities and customizable formatting
 
 ## Log Levels
 
@@ -60,7 +62,7 @@ Using an existing client is recommended when your application already has a Laun
 
 ### Important Note
 
-This utility is focused solely on providing console logging with dynamic log levels controlled by LaunchDarkly. It does not log or display LaunchDarkly SDK flag evaluation events. If you need to monitor flag evaluations, you should set up event listeners directly on your LaunchDarkly client:
+This utility uses Winston for robust logging with dynamic log levels controlled by LaunchDarkly. Each log entry includes a timestamp and proper formatting for both simple messages and complex objects. It does not log or display LaunchDarkly SDK flag evaluation events. If you need to monitor flag evaluations, you should set up event listeners directly on your LaunchDarkly client:
 
 ```javascript
 ldClient.on('update', (settings) => {
@@ -97,10 +99,11 @@ exports.handler = async (event, context) => {
   try {
     // Use different log levels as needed
     await logger.info('Lambda function started');
-    await logger.debug('Processing event:', event);
+    await logger.debug('Processing event:', event); // Objects are automatically stringified
     
     // Your lambda function logic here
     
+    // Logs will include timestamps and proper formatting
     await logger.info('Lambda function completed successfully');
     return { statusCode: 200 };
   } catch (error) {
@@ -136,6 +139,26 @@ You can control the LaunchDarkly SDK's own logging level by setting the `LD_SDK_
 
 ```javascript
 process.env.LD_SDK_LOG_LEVEL = 'error'; // error, warn, info, or debug
+```
+
+### Log Output Format
+
+Logs are formatted using Winston with the following features:
+- Timestamps for each log entry
+- Log level displayed in uppercase
+- Emoji indicators for visual distinction
+- Proper JSON formatting for object arguments
+- Color-coded output based on log level
+
+Example output:
+```
+2025-01-29T14:25:30.123Z 🔵 INFO: Lambda function started
+2025-01-29T14:25:30.124Z ⚪ DEBUG: Processing event: {
+  "version": "2.0",
+  "routeKey": "$default",
+  "rawPath": "/path"
+}
+2025-01-29T14:25:30.125Z 🔵 INFO: Lambda function completed successfully
 ```
 
 ## API Reference
@@ -184,6 +207,7 @@ process.env.LD_SDK_LOG_LEVEL = 'error'; // error, warn, info, or debug
 
 This project uses the following major dependencies:
 - `@launchdarkly/node-server-sdk`: ^9.7.3 (production)
+- `winston`: ^3.11.0 (production)
 - Node.js: >=18.0.0
 
 Development dependencies:

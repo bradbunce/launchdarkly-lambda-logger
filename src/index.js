@@ -18,6 +18,7 @@
  */
 
 const LaunchDarkly = require('@launchdarkly/node-server-sdk');
+const winston = require('winston');
 
 /**
  * Enumeration of available log levels in order of increasing verbosity.
@@ -46,6 +47,45 @@ class Logger {
   constructor() {
     this.ldClient = null;
     this.FLAG_KEY = null;
+    
+    // Initialize Winston logger with custom levels and colors
+    this.logger = winston.createLogger({
+      levels: {
+        fatal: 0,
+        error: 1,
+        warn: 2,
+        info: 3,
+        debug: 4,
+        trace: 5
+      },
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.printf(({ level, message, timestamp }) => {
+          const emoji = {
+            fatal: '💀',
+            error: '🔴',
+            warn: '🟡',
+            info: '🔵',
+            debug: '⚪',
+            trace: '🟣'
+          };
+          return `${timestamp} ${emoji[level]} ${level.toUpperCase()}: ${message}`;
+        })
+      ),
+      transports: [
+        new winston.transports.Console()
+      ]
+    });
+
+    // Add colors to Winston
+    winston.addColors({
+      fatal: 'red',
+      error: 'red',
+      warn: 'yellow',
+      info: 'blue',
+      debug: 'gray',
+      trace: 'magenta'
+    });
   }
 
   /**
@@ -64,14 +104,17 @@ class Logger {
     }
 
     if (typeof sdkKeyOrClient === 'string') {
-      this.ldClient = LaunchDarkly.init(sdkKeyOrClient, {
+      const ldOptions = {
         logger: LaunchDarkly.basicLogger({
           level: 'debug',
           destination: (level, message) => {
-            console.debug(`[LaunchDarkly SDK ${level}] ${message}`);
+            this.logger.debug(`[LaunchDarkly SDK ${level}] ${message}`);
           }
-        })
-      });
+        }),
+        ...options // Allow passing additional options like offline mode
+      };
+      
+      this.ldClient = LaunchDarkly.init(sdkKeyOrClient, ldOptions);
     } else if (sdkKeyOrClient && typeof sdkKeyOrClient === 'object') {
       this.ldClient = sdkKeyOrClient;
     } else {
@@ -82,10 +125,10 @@ class Logger {
     await this.ldClient.waitForInitialization({ timeout: 10 });
 
     // Log initialization details
-    console.debug('🚀 LaunchDarkly logger initialized:', {
+    this.logger.debug(`🚀 LaunchDarkly logger initialized: ${JSON.stringify({
       context,
       flagKey: this.FLAG_KEY
-    });
+    }, null, 2)}`);
   }
 
   /**
@@ -97,19 +140,19 @@ class Logger {
     if (!this.ldClient) return LogLevel.ERROR;
 
     // Add debug logging before evaluation
-    console.debug('🔍 Evaluating log level flag:', {
+    this.logger.debug(`🔍 Evaluating log level flag: ${JSON.stringify({
       flagKey: this.FLAG_KEY,
       context: this.context
-    });
+    }, null, 2)}`);
     
     const logLevel = await this.ldClient.variation(this.FLAG_KEY, this.context, LogLevel.ERROR);
     
     // Add debug logging after evaluation
-    console.debug('📊 Log level flag evaluated:', {
+    this.logger.debug(`📊 Log level flag evaluated: ${JSON.stringify({
       flagKey: this.FLAG_KEY,
       context: this.context,
       value: logLevel
-    });
+    }, null, 2)}`);
     
     return logLevel;
   }
@@ -130,7 +173,7 @@ class Logger {
    */
   async fatal(...args) {
     if (await this.shouldLog(LogLevel.FATAL)) {
-      console.error('💀', ...args);
+      this.logger.log('fatal', this.formatMessage(args));
     }
   }
 
@@ -140,7 +183,7 @@ class Logger {
    */
   async error(...args) {
     if (await this.shouldLog(LogLevel.ERROR)) {
-      console.error('🔴', ...args);
+      this.logger.error(this.formatMessage(args));
     }
   }
 
@@ -150,7 +193,7 @@ class Logger {
    */
   async warn(...args) {
     if (await this.shouldLog(LogLevel.WARN)) {
-      console.warn('🟡', ...args);
+      this.logger.warn(this.formatMessage(args));
     }
   }
 
@@ -160,7 +203,7 @@ class Logger {
    */
   async info(...args) {
     if (await this.shouldLog(LogLevel.INFO)) {
-      console.info('🔵', ...args);
+      this.logger.info(this.formatMessage(args));
     }
   }
 
@@ -170,7 +213,7 @@ class Logger {
    */
   async debug(...args) {
     if (await this.shouldLog(LogLevel.DEBUG)) {
-      console.debug('⚪', ...args);
+      this.logger.debug(this.formatMessage(args));
     }
   }
 
@@ -180,8 +223,20 @@ class Logger {
    */
   async trace(...args) {
     if (await this.shouldLog(LogLevel.TRACE)) {
-      console.trace('🟣', ...args);
+      this.logger.log('trace', this.formatMessage(args));
     }
+  }
+
+  /**
+   * Formats log messages to handle multiple arguments and objects
+   * @private
+   * @param {Array} args - Arguments to format
+   * @returns {string} Formatted message
+   */
+  formatMessage(args) {
+    return args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
   }
 
   /**
