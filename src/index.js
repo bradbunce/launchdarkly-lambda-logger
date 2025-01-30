@@ -158,15 +158,8 @@ class Logger {
           logger: LaunchDarkly.basicLogger({
             level: sdkLogLevel,
             destination: (level, message) => {
-              // Map SDK levels to Winston levels
-              const levelMap = {
-                debug: 'debug',
-                info: 'info',
-                warn: 'warn',
-                error: 'error'
-              };
-              const winstonLevel = levelMap[level] || 'debug';
-              this.logger[winstonLevel](`[LaunchDarkly SDK ${level}] ${message}`);
+              // Forward SDK messages to Winston at their original level
+              this.logger[level](`[LaunchDarkly SDK ${level}] ${message}`);
             }
           }),
           ...options

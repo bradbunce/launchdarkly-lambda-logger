@@ -1,6 +1,6 @@
 {
   "name": "@bradbunce/launchdarkly-lambda-logger",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "description": "LaunchDarkly-enabled logging utility for AWS Lambda functions",
   "main": "src/index.js",
   "engines": {
