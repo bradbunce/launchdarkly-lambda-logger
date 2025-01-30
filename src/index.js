@@ -110,12 +110,36 @@ class Logger {
       // Initialize a temporary client to get SDK log level from flag
       if (this.SDK_LOG_LEVEL_FLAG_KEY) {
         const validSdkLogLevels = ['debug', 'info', 'warn', 'error', 'none'];
+        // Initialize temporary client to get SDK log level
         const tempClient = LaunchDarkly.init(sdkKeyOrClient, {
           logger: LaunchDarkly.basicLogger({ level: 'error' })
         });
         
         await tempClient.waitForInitialization();
-        let sdkLogLevel = await tempClient.variation(this.SDK_LOG_LEVEL_FLAG_KEY, context, 'error');
+
+        // Get SDK log level from flag
+        let sdkLogLevel = await tempClient.variation(this.SDK_LOG_LEVEL_FLAG_KEY, context, process.env.LD_SDK_LOG_LEVEL || 'error');
+        
+        // Ensure we have a string value
+        if (typeof sdkLogLevel !== 'string') {
+          this.logger.warn(`Invalid SDK log level type: ${typeof sdkLogLevel}. Using default "error"`);
+          sdkLogLevel = 'error';
+        }
+        
+        // Debug log the flag evaluation
+        console.log('SDK Log Level Flag Evaluation:', {
+          flag: this.SDK_LOG_LEVEL_FLAG_KEY,
+          result: sdkLogLevel,
+          resultType: typeof sdkLogLevel,
+          fallback: process.env.LD_SDK_LOG_LEVEL || 'error',
+          context,
+          validLevels: validSdkLogLevels,
+          envVars: {
+            LD_SDK_LOG_LEVEL: process.env.LD_SDK_LOG_LEVEL,
+            LD_SDK_LOG_LEVEL_FLAG_KEY: process.env.LD_SDK_LOG_LEVEL_FLAG_KEY
+          }
+        });
+        
         await tempClient.close();
 
         // Validate the log level
@@ -123,6 +147,12 @@ class Logger {
           this.logger.warn(`Invalid SDK log level "${sdkLogLevel}" from flag. Using default "error"`);
           sdkLogLevel = 'error';
         }
+
+        // Log the final SDK log level we're using
+        console.log('Initializing LaunchDarkly client with SDK log level:', {
+          finalLevel: sdkLogLevel,
+          source: validSdkLogLevels.includes(sdkLogLevel) ? 'flag' : 'default'
+        });
 
         const ldOptions = {
           logger: LaunchDarkly.basicLogger({
