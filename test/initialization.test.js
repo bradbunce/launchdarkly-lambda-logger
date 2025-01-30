@@ -67,7 +67,7 @@ const setupTest = () => {
         return LogLevel.DEBUG;
       }
       if (key === "test-sdk-log-level-flag") {
-        return options.sdkLogLevel || "error";
+        return options.sdkLogLevel || "info";
       }
       return defaultValue;
     },
@@ -170,7 +170,17 @@ test("SDK messages are logged at correct Winston levels", async (t) => {
   try {
     await logger.initialize(
       "fake-sdk-key",
-      { key: "test-user" },
+      { 
+        kind: 'multi',
+        service: {
+          kind: 'service',
+          key: 'test-service'
+        },
+        user: {
+          kind: 'user',
+          key: 'test-user'
+        }
+      },
       {
         logLevelFlagKey: "test-log-level-flag",
         sdkLogLevelFlagKey: "test-sdk-log-level-flag",
@@ -269,7 +279,17 @@ test("SDK log level controls message filtering", async (t) => {
   try {
     await logger.initialize(
       "fake-sdk-key",
-      { key: "test-user" },
+      { 
+        kind: 'multi',
+        service: {
+          kind: 'service',
+          key: 'test-service'
+        },
+        user: {
+          kind: 'user',
+          key: 'test-user'
+        }
+      },
       {
         logLevelFlagKey: "test-log-level-flag",
         sdkLogLevelFlagKey: "test-sdk-log-level-flag",
@@ -315,7 +335,17 @@ test("Logger initialization with SDK key", async (t) => {
   try {
     await logger.initialize(
       "fake-sdk-key",
-      { key: "test-user" },
+      { 
+        kind: 'multi',
+        service: {
+          kind: 'service',
+          key: 'test-service'
+        },
+        user: {
+          kind: 'user',
+          key: 'test-user'
+        }
+      },
       {
         logLevelFlagKey: "test-log-level-flag",
       }
@@ -339,7 +369,17 @@ test("Logger handles missing SDK log level flag key", async (t) => {
   try {
     await logger.initialize(
       "fake-sdk-key",
-      { key: "test-user" },
+      { 
+        kind: 'multi',
+        service: {
+          kind: 'service',
+          key: 'test-service'
+        },
+        user: {
+          kind: 'user',
+          key: 'test-user'
+        }
+      },
       {
         offline: true,
         logLevelFlagKey: "test-log-level-flag",
@@ -367,7 +407,17 @@ test("Logger closes LaunchDarkly client", async (t) => {
   try {
     await logger.initialize(
       testClient,
-      { key: "test-user" },
+      { 
+        kind: 'multi',
+        service: {
+          kind: 'service',
+          key: 'test-service'
+        },
+        user: {
+          kind: 'user',
+          key: 'test-user'
+        }
+      },
       {
         logLevelFlagKey: "test-log-level-flag",
       }
@@ -376,57 +426,6 @@ test("Logger closes LaunchDarkly client", async (t) => {
     assert(clientClosed, "LaunchDarkly client should be closed");
   } finally {
     await cleanupTest(logger);
-  }
-});
-
-test("Logger handles invalid SDK log level value", async (t) => {
-  const { logger, loggedMessages } = setupTest();
-  process.env.LD_LOG_LEVEL_FLAG_KEY = "test-log-level-flag";
-  process.env.LD_SDK_LOG_LEVEL_FLAG_KEY = "test-sdk-log-level-flag";
-
-  // Override variation to return invalid log level
-  LaunchDarkly.init = (sdkKey, options = {}) => ({
-    waitForInitialization: async () => Promise.resolve(),
-    variation: async (key, context, defaultValue) => {
-      if (key === "test-sdk-log-level-flag") {
-        return "invalid-level";
-      }
-      return defaultValue;
-    },
-    close: async () => Promise.resolve(),
-    initialized: true,
-    on: function () {
-      return this;
-    },
-    off: function () {
-      return this;
-    },
-  });
-
-  try {
-    await logger.initialize(
-      "fake-sdk-key",
-      { key: "test-user" },
-      {
-        logLevelFlagKey: "test-log-level-flag",
-        sdkLogLevelFlagKey: "test-sdk-log-level-flag",
-      }
-    );
-
-    const messages = loggedMessages.map((m) => m.message);
-    assert(
-      messages.some((msg) =>
-        msg.includes('Invalid SDK log level "invalid-level" from flag')
-      ),
-      "Should log warning about invalid SDK log level"
-    );
-    assert(
-      messages.some((msg) => msg.includes('Using default "error"')),
-      "Should indicate fallback to error level"
-    );
-  } finally {
-    await cleanupTest(logger);
-    delete process.env.LD_SDK_LOG_LEVEL_FLAG_KEY;
   }
 });
 
@@ -470,7 +469,17 @@ test("Logger properly creates and cleans up temporary client for SDK log level",
   try {
     await logger.initialize(
       "fake-sdk-key",
-      { key: "test-user" },
+      { 
+        kind: 'multi',
+        service: {
+          kind: 'service',
+          key: 'test-service'
+        },
+        user: {
+          kind: 'user',
+          key: 'test-user'
+        }
+      },
       {
         logLevelFlagKey: "test-log-level-flag",
         sdkLogLevelFlagKey: "test-sdk-log-level-flag",

@@ -118,35 +118,17 @@ class Logger {
         await tempClient.waitForInitialization();
 
         // Get SDK log level from flag
-        let sdkLogLevel = await tempClient.variation(this.SDK_LOG_LEVEL_FLAG_KEY, context, process.env.LD_SDK_LOG_LEVEL || 'error');
-        
-        // Ensure we have a string value
-        if (typeof sdkLogLevel !== 'string') {
-          this.logger.warn(`Invalid SDK log level type: ${typeof sdkLogLevel}. Using default "error"`);
-          sdkLogLevel = 'error';
-        }
-        
-        // Debug log the flag evaluation
-        console.log('SDK Log Level Flag Evaluation:', {
-          flag: this.SDK_LOG_LEVEL_FLAG_KEY,
-          result: sdkLogLevel,
-          resultType: typeof sdkLogLevel,
-          fallback: process.env.LD_SDK_LOG_LEVEL || 'error',
-          context,
-          validLevels: validSdkLogLevels,
-          envVars: {
-            LD_SDK_LOG_LEVEL: process.env.LD_SDK_LOG_LEVEL,
-            LD_SDK_LOG_LEVEL_FLAG_KEY: process.env.LD_SDK_LOG_LEVEL_FLAG_KEY
-          }
-        });
-        
-        await tempClient.close();
+        // Create service context for SDK log level evaluation
+        const serviceContext = {
+          kind: 'service',
+          key: context.service?.key || 'default-service',
+          name: context.service?.name || 'Default Service',
+          environment: process.env.NODE_ENV || 'development'
+        };
 
-        // Validate the log level
-        if (!validSdkLogLevels.includes(sdkLogLevel)) {
-          this.logger.warn(`Invalid SDK log level "${sdkLogLevel}" from flag. Using default "error"`);
-          sdkLogLevel = 'error';
-        }
+        // Get SDK log level from flag
+        let sdkLogLevel = await tempClient.variation(this.SDK_LOG_LEVEL_FLAG_KEY, serviceContext, 'info');
+        await tempClient.close();
 
         // Log the final SDK log level we're using
         console.log('Initializing LaunchDarkly client with SDK log level:', {
@@ -201,7 +183,7 @@ class Logger {
       context: this.context
     }, null, 2)}`);
     
-    const logLevel = await this.ldClient.variation(this.FLAG_KEY, this.context, LogLevel.ERROR);
+    const logLevel = await this.ldClient.variation(this.FLAG_KEY, this.context, LogLevel.INFO);
     
     // Add debug logging after evaluation
     this.logger.debug(`📊 Log level flag evaluated: ${JSON.stringify({

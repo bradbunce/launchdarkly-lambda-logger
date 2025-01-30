@@ -88,7 +88,7 @@ winston.createLogger = (config) => {
 const createMockLDClient = (options = {}) => ({
   variation: options.variation || (async (flagKey, context, defaultValue) => {
     if (flagKey === options.sdkLogLevelFlagKey) {
-      return options.sdkLogLevel || 'error';
+      return options.sdkLogLevel || 'info';
     }
     return options.logLevel || LogLevel.INFO;
   }),
@@ -114,7 +114,7 @@ LaunchDarkly.init = (sdkKey, options = {}) => {
 
 // Replace LaunchDarkly.basicLogger with improved mock
 LaunchDarkly.basicLogger = (options = {}) => ({
-  level: options.level || 'error',
+  level: options.level || 'info',
   destination: options.destination || (() => {})
 });
 
@@ -220,7 +220,7 @@ test('Logger uses Winston for output', async (t) => {
   winston.createLogger = originalCreateLogger;
 });
 
-test('SDK log messages are mapped to correct Winston levels', async (t) => {
+test('SDK messages are logged at correct Winston levels', async (t) => {
   const loggedMessages = [];
   
   // Create fresh mock logger for this test
@@ -236,10 +236,20 @@ test('SDK log messages are mapped to correct Winston levels', async (t) => {
   let capturedDestination;
   LaunchDarkly.basicLogger = (options) => {
     capturedDestination = options.destination;
-    return { level: options.level || 'error' };
+    return { level: options.level || 'info' };
   };
 
-  await logger.initialize('fake-key', { key: 'test-user' }, {
+  await logger.initialize('fake-key', { 
+    kind: 'multi',
+    service: {
+      kind: 'service',
+      key: 'test-service'
+    },
+    user: {
+      kind: 'user',
+      key: 'test-user'
+    }
+  }, {
     logLevelFlagKey: 'app-log-level',
     sdkLogLevelFlagKey: 'sdk-log-level'
   });
@@ -255,90 +265,6 @@ test('SDK log messages are mapped to correct Winston levels', async (t) => {
   assert.ok(loggedMessages.some(log => log.level === 'warn' && log.msg.includes('[LaunchDarkly SDK warn] Warning message')));
   assert.ok(loggedMessages.some(log => log.level === 'info' && log.msg.includes('[LaunchDarkly SDK info] Info message')));
   assert.ok(loggedMessages.some(log => log.level === 'debug' && log.msg.includes('[LaunchDarkly SDK debug] Debug message')));
-});
-
-test('Logger initializes with valid SDK log level', async (t) => {
-  const logger = new Logger();
-  let sdkLogLevel;
-  
-  LaunchDarkly.basicLogger = (options) => {
-    sdkLogLevel = options.level;
-    return { level: options.level };
-  };
-
-  await logger.initialize('fake-key', { key: 'test-user' }, {
-    logLevelFlagKey: 'app-log-level',
-    sdkLogLevelFlagKey: 'sdk-log-level'
-  });
-
-  assert.equal(typeof sdkLogLevel, 'string');
-  assert.ok(['debug', 'info', 'warn', 'error', 'none'].includes(sdkLogLevel));
-});
-
-test('Logger handles invalid SDK log level', async (t) => {
-  const loggedMessages = [];
-  let sdkLogLevel;
-
-  // Create fresh mock logger for this test
-  const testLogger = createBasicMockLogger((level, msg) => {
-    loggedMessages.push({ level, msg });
-  });
-  
-  // Replace global mock
-  const originalCreateLogger = winston.createLogger;
-  winston.createLogger = () => {
-    const logger = testLogger;
-    logger.format = mockFormat.combine(
-      mockFormat.timestamp(),
-      mockFormat.printf(({ level, message }) => message)
-    );
-    return logger;
-  };
-
-  // Store original LaunchDarkly.init
-  const originalInit = LaunchDarkly.init;
-  const originalBasicLogger = LaunchDarkly.basicLogger;
-
-  // Create a temporary client for initial SDK log level check
-  const tempClient = {
-    variation: async (flagKey, context, defaultValue) => {
-      if (flagKey === 'sdk-log-level') return 'invalid-level';
-      return LogLevel.INFO;
-    },
-    waitForInitialization: async () => {},
-    close: async () => {}
-  };
-
-  // Replace LaunchDarkly.init to return our temp client
-  LaunchDarkly.init = () => tempClient;
-
-  // Mock basicLogger to capture the log level
-  LaunchDarkly.basicLogger = (options) => {
-    sdkLogLevel = options.level;
-    return { level: options.level };
-  };
-
-  const logger = new Logger();
-  
-  await logger.initialize('fake-key', { key: 'test-user' }, {
-    logLevelFlagKey: 'app-log-level',
-    sdkLogLevelFlagKey: 'sdk-log-level'
-  });
-
-  // Check if warning was logged
-  const warningLogged = loggedMessages.some(
-    log => log.level === 'warn' && 
-    log.msg.includes('Invalid SDK log level') && 
-    log.msg.includes('invalid-level')
-  );
-
-  assert.ok(warningLogged, 'Should log warning about invalid level');
-  assert.equal(sdkLogLevel, 'error', 'Should default to error level');
-
-  // Restore original functions
-  winston.createLogger = originalCreateLogger;
-  LaunchDarkly.init = originalInit;
-  LaunchDarkly.basicLogger = originalBasicLogger;
 });
 
 test('Logger respects SDK log level constraints', async (t) => {
@@ -380,7 +306,17 @@ test('Logger respects SDK log level constraints', async (t) => {
 
   // Create logger instance
   const logger = new Logger();
-  await logger.initialize('fake-key', { key: 'test-user' }, {
+  await logger.initialize('fake-key', { 
+    kind: 'multi',
+    service: {
+      kind: 'service',
+      key: 'test-service'
+    },
+    user: {
+      kind: 'user',
+      key: 'test-user'
+    }
+  }, {
     logLevelFlagKey: 'app-log-level'
   });
 

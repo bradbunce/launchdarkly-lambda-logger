@@ -41,11 +41,24 @@ npm install @bradbunce/launchdarkly-lambda-logger
 
 ### Initialization Options
 
-The logger can be initialized in two ways:
+The logger requires a multi-context with both service and user contexts. The service context is used for evaluating log level flags, while the full multi-context is available for your application's use.
 
 1. With a LaunchDarkly SDK key (creates a new client):
    ```javascript
-   await logger.initialize('YOUR_SDK_KEY', context, {
+   await logger.initialize('YOUR_SDK_KEY', {
+     kind: 'multi',
+     service: {
+       kind: 'service',
+       key: 'weather-app-websocket-lambda',
+       name: 'Weather App WebSocket Lambda',
+       environment: process.env.NODE_ENV || 'development'
+     },
+     user: {
+       kind: 'user',
+       key: 'user-123',
+       name: 'John Doe'
+     }
+   }, {
      logLevelFlagKey: 'your-flag-key', // Optional: overrides LD_LOG_LEVEL_FLAG_KEY env var
      sdkLogLevelFlagKey: 'your-sdk-log-level-flag' // Optional: overrides LD_SDK_LOG_LEVEL_FLAG_KEY env var
    });
@@ -54,7 +67,20 @@ The logger can be initialized in two ways:
 2. With an existing LaunchDarkly client (recommended if your app already has one):
    ```javascript
    const ldClient = LaunchDarkly.init('YOUR_SDK_KEY');
-   await logger.initialize(ldClient, context, {
+   await logger.initialize(ldClient, {
+     kind: 'multi',
+     service: {
+       kind: 'service',
+       key: 'weather-app-websocket-lambda',
+       name: 'Weather App WebSocket Lambda',
+       environment: process.env.NODE_ENV || 'development'
+     },
+     user: {
+       kind: 'user',
+       key: 'user-123',
+       name: 'John Doe'
+     }
+   }, {
      logLevelFlagKey: 'your-flag-key' // Optional: overrides LD_LOG_LEVEL_FLAG_KEY env var
    });
    ```
@@ -79,23 +105,63 @@ ldClient.on('change', (settings) => {
 
 ```javascript
 const { logger } = require('@bradbunce/launchdarkly-lambda-logger');
+const LaunchDarkly = require('@launchdarkly/node-server-sdk');
+
+// Helper to create service context
+const createServiceContext = () => ({
+  kind: 'service',
+  key: 'weather-app-websocket-lambda',
+  name: 'Weather App WebSocket Lambda',
+  environment: process.env.NODE_ENV || 'development'
+});
+
+// Helper to create user context from token
+const createUserContext = (token, verifyToken) => {
+  if (!token) {
+    return {
+      kind: 'user',
+      key: 'anonymous',
+      anonymous: true
+    };
+  }
+
+  try {
+    const decoded = verifyToken(token);
+    return {
+      kind: 'user',
+      key: decoded.username || String(decoded.userId),
+      name: decoded.name,
+      userId: decoded.userId,
+      anonymous: false
+    };
+  } catch (error) {
+    return {
+      kind: 'user',
+      key: 'anonymous',
+      anonymous: true
+    };
+  }
+};
+
+// Helper to create multi-context
+const createMultiContext = (token, verifyToken) => ({
+  kind: 'multi',
+  user: createUserContext(token, verifyToken),
+  service: createServiceContext()
+});
 
 exports.handler = async (event, context) => {
   // Set the flag keys via environment variables
   process.env.LD_LOG_LEVEL_FLAG_KEY = 'your-log-level-flag';
   process.env.LD_SDK_LOG_LEVEL_FLAG_KEY = 'your-sdk-log-level-flag';
   
-  // Initialize the logger with your LaunchDarkly SDK key and context
-  await logger.initialize('YOUR_SDK_KEY', {
-    kind: 'user',
-    key: 'lambda-function-1'
-  });
-
-  // OR use an existing LaunchDarkly client
-  const ldClient = LaunchDarkly.init('YOUR_SDK_KEY');
-  await logger.initialize(ldClient, {
-    kind: 'user',
-    key: 'lambda-function-1'
+  // Create LaunchDarkly client with SDK log level from flag
+  const ldClient = await initializeLDClient();
+  
+  // Initialize logger with multi-context
+  const multiContext = createMultiContext(event.token, verifyToken);
+  await logger.initialize(ldClient, multiContext, {
+    logLevelFlagKey: process.env.LD_LOG_LEVEL_FLAG_KEY
   });
 
   try {
@@ -128,7 +194,7 @@ The logger uses a feature flag to control the application log level. The flag ke
 Create this flag in your LaunchDarkly project with the following configuration:
 - **Key**: Set via `LD_LOG_LEVEL_FLAG_KEY` environment variable or `logLevelFlagKey` option
 - **Type**: Number
-- **Default value**: 1 (ERROR level)
+- **Default value**: 3 (INFO level)
 - **Possible values**:
   - 0: FATAL only
   - 1: ERROR and above
@@ -143,7 +209,7 @@ You can control the LaunchDarkly SDK's own logging level using a feature flag. T
 Create this flag in your LaunchDarkly project with the following configuration:
 - **Key**: Set via `LD_SDK_LOG_LEVEL_FLAG_KEY` environment variable or `sdkLogLevelFlagKey` option
 - **Type**: String
-- **Default value**: 'error'
+- **Default value**: 'info'
 - **Possible values**:
   - 'debug': Most verbose logging (includes all levels)
   - 'info': Info and above (includes info, warn, error)
@@ -151,7 +217,7 @@ Create this flag in your LaunchDarkly project with the following configuration:
   - 'error': Error messages only
   - 'none': No SDK logging
 
-The SDK log level filtering is hierarchical, meaning each level includes all levels above it. For example, if the SDK log level is set to 'warn', both warning and error messages will be logged, but info and debug messages will be filtered out. If an invalid value is returned by the flag, the SDK will default to 'error' level logging.
+The SDK log level filtering is hierarchical, meaning each level includes all levels above it. For example, if the SDK log level is set to 'warn', both warning and error messages will be logged, but info and debug messages will be filtered out.
 
 ### Log Output Format
 
@@ -181,6 +247,7 @@ Example output:
   - Initializes the logger with either a LaunchDarkly SDK key or an existing LaunchDarkly client instance
   - When using a SDK key, a new client will be created
   - When using an existing client, the logger will use that client instead of creating a new one
+  - The context must be a multi-context with both service and user contexts
   - Options:
     - `logLevelFlagKey`: Override the LD_LOG_LEVEL_FLAG_KEY environment variable
     - `sdkLogLevelFlagKey`: Override the LD_SDK_LOG_LEVEL_FLAG_KEY environment variable
@@ -233,7 +300,7 @@ const mockLDClient = {
       return LogLevel.DEBUG; // Control application logging
     }
     if (flagKey === 'sdk-log-level') {
-      return 'error'; // Control SDK logging
+      return 'info'; // Control SDK logging
     }
     return defaultValue;
   },
@@ -246,7 +313,17 @@ LaunchDarkly.init = () => mockLDClient;
 
 // Test your logging
 const logger = new Logger();
-await logger.initialize('fake-key', { key: 'test-user' }, {
+await logger.initialize('fake-key', {
+  kind: 'multi',
+  service: {
+    kind: 'service',
+    key: 'test-service'
+  },
+  user: {
+    kind: 'user',
+    key: 'test-user'
+  }
+}, {
   logLevelFlagKey: 'app-log-level',
   sdkLogLevelFlagKey: 'sdk-log-level'
 });
