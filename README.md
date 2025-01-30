@@ -145,13 +145,13 @@ Create this flag in your LaunchDarkly project with the following configuration:
 - **Type**: String
 - **Default value**: 'error'
 - **Possible values**:
-  - 'debug': Most verbose logging
-  - 'info': Informational messages
-  - 'warn': Warning messages
+  - 'debug': Most verbose logging (includes all levels)
+  - 'info': Info and above (includes info, warn, error)
+  - 'warn': Warning and above (includes warn, error)
   - 'error': Error messages only
   - 'none': No SDK logging
 
-If an invalid value is returned by the flag, the SDK will default to 'error' level logging.
+The SDK log level filtering is hierarchical, meaning each level includes all levels above it. For example, if the SDK log level is set to 'warn', both warning and error messages will be logged, but info and debug messages will be filtered out. If an invalid value is returned by the flag, the SDK will default to 'error' level logging.
 
 ### Log Output Format
 
@@ -183,6 +183,7 @@ Example output:
   - When using an existing client, the logger will use that client instead of creating a new one
   - Options:
     - `logLevelFlagKey`: Override the LD_LOG_LEVEL_FLAG_KEY environment variable
+    - `sdkLogLevelFlagKey`: Override the LD_SDK_LOG_LEVEL_FLAG_KEY environment variable
   - Must be called before using any logging methods
 
 - `fatal(...args: any[]): Promise<void>`
@@ -212,6 +213,98 @@ Example output:
 - `close(): Promise<void>`
   - Closes the LaunchDarkly client connection
   - Should be called when the logger is no longer needed
+
+## Testing
+
+### Mocking LaunchDarkly Client
+
+When writing tests, you can mock the LaunchDarkly client to control flag values and verify logging behavior. Here's an example:
+
+```javascript
+const { Logger, LogLevel } = require('@bradbunce/launchdarkly-lambda-logger');
+const LaunchDarkly = require('@launchdarkly/node-server-sdk');
+
+// Mock LaunchDarkly client
+const mockLDClient = {
+  waitForInitialization: async () => {},
+  variation: async (flagKey, context, defaultValue) => {
+    // Return different values based on flag key
+    if (flagKey === 'app-log-level') {
+      return LogLevel.DEBUG; // Control application logging
+    }
+    if (flagKey === 'sdk-log-level') {
+      return 'error'; // Control SDK logging
+    }
+    return defaultValue;
+  },
+  close: async () => {}
+};
+
+// Replace LaunchDarkly.init with mock
+const originalInit = LaunchDarkly.init;
+LaunchDarkly.init = () => mockLDClient;
+
+// Test your logging
+const logger = new Logger();
+await logger.initialize('fake-key', { key: 'test-user' }, {
+  logLevelFlagKey: 'app-log-level',
+  sdkLogLevelFlagKey: 'sdk-log-level'
+});
+
+// Restore original after tests
+LaunchDarkly.init = originalInit;
+```
+
+### Mocking Winston Logger
+
+You can also mock the Winston logger to capture and verify log output:
+
+```javascript
+const winston = require('winston');
+
+// Create a mock logger with message capture
+const createMockLogger = (callback) => {
+  const logger = {
+    levels: {
+      fatal: 0,
+      error: 1,
+      warn: 2,
+      info: 3,
+      debug: 4,
+      trace: 5
+    },
+    format: winston.format,
+    transports: [],
+    log(level, message) {
+      callback({ level, message });
+    }
+  };
+
+  // Add level-specific methods
+  ['fatal', 'error', 'warn', 'info', 'debug', 'trace'].forEach(level => {
+    logger[level] = (msg) => logger.log(level, msg);
+  });
+
+  return logger;
+};
+
+// Use in tests
+const loggedMessages = [];
+const mockLogger = createMockLogger(({ level, message }) => {
+  loggedMessages.push({ level, message });
+});
+
+// Replace Winston's createLogger
+const originalCreateLogger = winston.createLogger;
+winston.createLogger = () => mockLogger;
+
+// Test logging and verify output
+await logger.info('test message');
+assert(loggedMessages.some(m => m.message === 'test message'));
+
+// Restore original
+winston.createLogger = originalCreateLogger;
+```
 
 ## Maintenance
 
