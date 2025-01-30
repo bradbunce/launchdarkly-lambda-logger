@@ -107,18 +107,24 @@ class Logger {
     }
 
     if (typeof sdkKeyOrClient === 'string') {
-      // Initialize a temporary client to get SDK log level from flag
+      // When creating a new LaunchDarkly client, we need to know the SDK log level before initialization
+      // since it's part of the client's configuration options. But to get the SDK log level from the
+      // feature flag, we need a client to evaluate the flag. To solve this chicken-and-egg problem:
+      // 1. Create a temporary client with minimal logging
+      // 2. Use it to get the SDK log level from the flag
+      // 3. Close it
+      // 4. Create the main client with the proper SDK log level
       if (this.SDK_LOG_LEVEL_FLAG_KEY) {
         const validSdkLogLevels = ['debug', 'info', 'warn', 'error', 'none'];
-        // Initialize temporary client to get SDK log level
+        
+        // Step 1: Create temporary client with minimal logging
         const tempClient = LaunchDarkly.init(sdkKeyOrClient, {
-          logger: LaunchDarkly.basicLogger({ level: 'error' })
+          logger: LaunchDarkly.basicLogger({ level: 'error' }) // Use error level to minimize noise during initialization
         });
         
-        await tempClient.waitForInitialization();
+        await tempClient.waitForInitialization({timeout: 2});
 
-        // Get SDK log level from flag
-        // Create service context for SDK log level evaluation
+        // Step 2: Extract service context for SDK log level evaluation
         const serviceContext = {
           kind: 'service',
           key: context.service?.key || 'default-service',
@@ -126,8 +132,10 @@ class Logger {
           environment: process.env.NODE_ENV || 'development'
         };
 
-        // Get SDK log level from flag
+        // Step 3: Get SDK log level from flag
         let sdkLogLevel = await tempClient.variation(this.SDK_LOG_LEVEL_FLAG_KEY, serviceContext, 'info');
+        
+        // Step 4: Clean up temporary client
         await tempClient.close();
 
         // Log the final SDK log level we're using
@@ -136,6 +144,7 @@ class Logger {
           source: validSdkLogLevels.includes(sdkLogLevel) ? 'flag' : 'default'
         });
 
+        // Step 5: Create main client with proper SDK log level
         const ldOptions = {
           logger: LaunchDarkly.basicLogger({
             level: sdkLogLevel,
@@ -159,7 +168,7 @@ class Logger {
     }
 
     this.context = context;
-    await this.ldClient.waitForInitialization();
+    await this.ldClient.waitForInitialization({timeout: 2});
 
     // Log initialization details
     this.logger.debug(`🚀 LaunchDarkly logger initialized: ${JSON.stringify({
